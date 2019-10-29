@@ -92,7 +92,7 @@
 // PPS objects
 #include "DataFormats/CTPPSDetId/interface/CTPPSDetId.h"
 #include "DataFormats/CTPPSReco/interface/CTPPSLocalTrackLite.h"
-#include "DataFormats/ProtonReco/interface/ProtonTrack.h"
+#include "DataFormats/ProtonReco/interface/ForwardProton.h"
 
 
 #include "DiffractiveForwardAnalysis/GammaGammaLeptonLepton/interface/HLTMatcher.h"
@@ -176,7 +176,8 @@ class GammaGammaLL : public edm::one::EDAnalyzer<edm::one::WatchRuns,edm::one::S
     edm::EDGetTokenT<edm::ValueMap<bool> > phoMediumIdMapToken_, phoTightIdMapToken_;*/
     edm::EDGetTokenT<double> fixedGridRhoFastjetAllToken_;
     edm::EDGetTokenT<edm::View<CTPPSLocalTrackLite> > ppsLocalTrackToken_;
-    edm::EDGetTokenT<std::vector<reco::ProtonTrack> > recoProtonsToken_;
+    edm::EDGetTokenT<std::vector<reco::ForwardProton> > recoProtonsSingleRPToken_;
+    edm::EDGetTokenT<std::vector<reco::ForwardProton> > recoProtonsMultiRPToken_;
 
     bool runOnMC_, printCandidates_;
     double minPtMC_, minEtaMC_;
@@ -209,6 +210,11 @@ class GammaGammaLL : public edm::one::EDAnalyzer<edm::one::WatchRuns,edm::one::S
     std::map<unsigned int,reco::TransientTrack> muonTransientTracks_, eleTransientTracks_;
 
     unsigned int nCandidates_;
+
+	 bool runOnMINIAOD_;
+    edm::EDGetTokenT<edm::View<pat::PackedCandidate> > pfCand_;
+
+
 };
 
 const unsigned int ggll::AnalysisEvent::MAX_ET;
@@ -231,7 +237,8 @@ GammaGammaLL::GammaGammaLL( const edm::ParameterSet& iConfig ) :
   phoTightIdMapToken_ ( consumes<edm::ValueMap<bool> >                 ( iConfig.getParameter<edm::InputTag>( "phoTightIdMap" ) ) ),*/
   fixedGridRhoFastjetAllToken_( consumes<double>                       ( iConfig.getParameter<edm::InputTag>( "fixedGridRhoFastjetAllLabel" ) ) ),
   ppsLocalTrackToken_ ( consumes<edm::View<CTPPSLocalTrackLite> >      ( iConfig.getParameter<edm::InputTag>( "ppsLocalTrackTag" ) ) ),
-  recoProtonsToken_   ( consumes<std::vector<reco::ProtonTrack> >      ( iConfig.getParameter<edm::InputTag>( "ppsRecoProtonTag" ) ) ),
+  recoProtonsSingleRPToken_   ( consumes<std::vector<reco::ForwardProton> >      ( iConfig.getParameter<edm::InputTag>( "ppsRecoProtonSingleRPTag" ) ) ),
+  recoProtonsMultiRPToken_   ( consumes<std::vector<reco::ForwardProton> >      ( iConfig.getParameter<edm::InputTag>( "ppsRecoProtonMultiRPTag" ) ) ),
   runOnMC_            ( iConfig.getParameter<bool>( "runOnMC" ) ),
   printCandidates_    ( iConfig.getParameter<bool>( "printCandidates" ) ),
   sqrts_              ( iConfig.getParameter<double>( "sqrtS" ) ),
@@ -248,7 +255,9 @@ GammaGammaLL::GammaGammaLL( const edm::ParameterSet& iConfig ) :
   dataPileupFile_     ( iConfig.getParameter<std::string>( "datapufile" ) ),
   mcPileupPath_       ( iConfig.getParameter<std::string>( "mcpupath" ) ),
   dataPileupPath_     ( iConfig.getParameter<std::string>( "datapupath" ) ),
-  nCandidates_( 0 )
+  nCandidates_( 0 ),
+  runOnMINIAOD_       ( iConfig.getParameter<bool>( "runOnMINIAOD" ) ),
+  pfCand_          ( consumes<edm::View<pat::PackedCandidate> >                ( iConfig.getParameter<edm::InputTag>( "pfCand" ) ) )
 {
   // Generator level
   if ( runOnMC_ ) {
@@ -305,8 +314,11 @@ GammaGammaLL::lookAtTriggers( const edm::Event& iEvent, const edm::EventSetup& i
   std::ostringstream os;
   os << "Prescale set: " << hltPrescale_.prescaleSet(iEvent, iSetup) << "\n"
      << "Trigger names: " << std::endl;
+
+
   for ( unsigned int i = 0; i < trigNames.size(); ++i ) {
     os << "* " << trigNames.triggerNames().at( i ) << std::endl;
+
 
     // ensure trigger matches the interesting ones
     const int trigNum = hlts_.TriggerNum( trigNames.triggerNames().at( i ) );
@@ -339,6 +351,7 @@ GammaGammaLL::lookAtTriggers( const edm::Event& iEvent, const edm::EventSetup& i
 void
 GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 {
+
   // Kalman filtering
   iSetup.get<TransientTrackRecord>().get( "TransientTrackBuilder", KalVtx_ );
 
@@ -355,14 +368,14 @@ GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 
   // High level trigger information retrieval
   // JH - for Summer17 MC this crashes...
-  if ( !runOnMC_ ) {
+//  if ( !runOnMC_ ) {
     lookAtTriggers( iEvent, iSetup);
-  }
+//  }
 
   LogDebug( "GammaGammaLL" ) << "Passed trigger filtering stage";
 
-  // Crossing angle information from DB for 2018
-  if(year_ == "2018")
+  // Crossing angle information from DB - available for all years in legacy re-RECO
+  if(year_ == "2018" || year_ == "2017" || year_ == "2016")
     {
       edm::ESHandle<LHCInfo> pSetup;
       const string label = "";
@@ -404,24 +417,95 @@ GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 
   if ( fetchMuons_ ) fetchMuons( iEvent );
   if ( fetchElectrons_ ) fetchElectrons( iEvent );
+	
+  if (runOnMINIAOD_ == false) {
+	  newVertexInfoRetrieval( iEvent );
 
-  newVertexInfoRetrieval( iEvent );
-
-  if ( !foundPairInEvent_ ) {
-    //LogDebug( "GammaGammaLL" ) << "No pair retrieved in event";
-    return; // avoid to unpack RP/jet/MET if no dilepton candidate has been found
-  }
+  	  if ( !foundPairInEvent_ ) {
+    		//LogDebug( "GammaGammaLL" ) << "No pair retrieved in event";
+    		return; // avoid to unpack RP/jet/MET if no dilepton candidate has been found
+  	  }
+	}
+ 
+	else {
+  		fetchVertices( iEvent );
+   }
 
   if ( fetchProtons_ ) {
     fetchProtons( iEvent );
-    if ( evt_.nLocalProtCand < 1 )
-      return;
+//    if ( evt_.nLocalProtCand < 1 )
+//      return;     AQUI
   }
 
   if ( printCandidates_ )
     std::cout << "Event " << evt_.Run << ":" << evt_.EventNum << " has " << evt_.nPair << " leptons pair(s) candidate(s) (vertex mult. : " << evt_.nPrimVertexCand << " )" << std::endl;
 
+  if (runOnMINIAOD_ == true) {
+
+  /* Codigo do Mauricio:
+ 
+	int npfVtx = 0;
+	for (size_t pf = 0; pf < PFCand->size(); pf++) {
+		if (abs(PFCand->at(pf).pdgId()) == 211 || abs(PFCand->at(pf).pdgId()) == 11 || abs(PFCand->at(pf).pdgId()) == 13){
+			//                      if (PFCand->at(pf).fromPV(0)==3) {
+			if (abs(PFCand->at(pf).dz())<0.3){
+				npfVtx++;
+				pfphi->push_back(PFCand->at(pf).phiAtVtx());
+				pfeta->push_back(PFCand->at(pf).eta());
+				pffromPV->push_back(PFCand->at(pf).fromPV(0));
+				pfdz->push_back(PFCand->at(pf).dz());
+				pfpt->push_back(PFCand->at(pf).pt());
+			}
+			//                      }
+		}
+	}
+ 
+ 
+ 
+ */
+
+  edm::Handle<edm::View<pat::PackedCandidate> > pfCand;
+  iEvent.getByToken( pfCand_, pfCand );
+  unsigned int jj = 0;
+      for (unsigned int i = 0; i < pfCand->size() && /*evt_.nPfCand*/jj < ggll::AnalysisEvent::MAX_PFCAND; ++i) {
+			const pat::PackedCandidate &pf = (*pfCand)[i];
+/*
+			std::cout << " i = " << i << std::endl;
+         std::cout << " evt_.nPfCand = " << evt_.nPfCand << std::endl;
+			if ( pf.dz() < .3 ) {
+         std::cout << "                           i = " << i << std::endl;
+         std::cout << "                           evt_.nPfCand = " << evt_.nPfCand << std::endl;
+				//std::cout << pf.pt() << std::endl;
+    			evt_.PfCand_phi[evt_.nPfCand] = pf.phi();
+    			evt_.PfCand_eta[evt_.nPfCand] = pf.eta();
+    			evt_.PfCand_fromPV[evt_.nPfCand] = pf.fromPV();
+    			evt_.PfCand_dz[evt_.nPfCand] = pf.dz();
+			}
+*/
+ //        std::cout << " i = " << i << std::endl;
+//         std::cout << " evt_.nPfCand = " << evt_.nPfCand << std::endl;
+         if ( ( pf.dz() < .3 ) && 
+		        ( abs(pf.pdgId()) == 211 || abs(pf.pdgId()) == 11 || abs(pf.pdgId()) == 13 ) &&
+				  ( (pf.fromPV() == 2) || (pf.fromPV() == 3) ) ) {
+//         std::cout << "                           i = " << i << std::endl;
+//         std::cout << "                           evt_.nPfCand = " << evt_.nPfCand << std::endl;
+//         std::cout << "                           jj = " << jj << std::endl;
+            evt_.PfCand_phi[jj] = pf.phi();
+            evt_.PfCand_eta[jj] = pf.eta();
+            evt_.PfCand_fromPV[jj] = pf.fromPV();
+            evt_.PfCand_dz[jj] = pf.dz();
+				jj++;
+			   evt_.nPfCand++;	
+         }
+
+  		}
+ //        std::cout << "                           evt_.nPfCand = " << evt_.nPfCand << std::endl;
+ //        std::cout << "                           jj = " << jj << std::endl;
+
+  }
+
   tree_->Fill();
+
 }
 
 void
@@ -687,9 +771,11 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
   }
   LogDebug( "GammaGammaLL" ) << "Passed TOTEM RP info retrieval stage. Got " << evt_.nLocalProtCand << " local track(s)";
 
-  // Full reco protons
-  edm::Handle<vector<reco::ProtonTrack>> recoProtons;
-  iEvent.getByToken(recoProtonsToken_, recoProtons);
+  // Full reco protons - 2 separate collections for legacy re-reco
+  edm::Handle<vector<reco::ForwardProton>> recoMultiRPProtons;
+  iEvent.getByToken(recoProtonsMultiRPToken_, recoMultiRPProtons);
+  edm::Handle<vector<reco::ForwardProton>> recoSingleRPProtons;
+  iEvent.getByToken(recoProtonsSingleRPToken_, recoSingleRPProtons);
 
   int ismultirp = -999;
   unsigned int decRPId = -999;
@@ -698,38 +784,114 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
   float th_x = -999;
   float t = -999;
   float xi = -999;
-
+  float trackx1 = -999.;
+  float tracky1 = -999.;
+  float trackx2 = -999.;
+  float tracky2 = -999.;
+  unsigned int trackrpid1 = -999;
+  unsigned int trackrpid2 = -999;
+  int pixshift1 = -999;
+  int pixshift2 = -999;
+  float time = -999.;
 
   evt_.nRecoProtCand = 0;
-  for (const auto & proton : *recoProtons)
+
+  /// Track information byte for bx-shifted runs:                                                                                                                               
+  /// reco_info = notShiftedRun    -> Default value for tracks reconstructed in non-bx-shifted ROCs                                                                             
+  /// reco_info = allShiftedPlanes -> Track reconstructed in a bx-shifted ROC with bx-shifted planes only                                                                       
+  /// reco_info = noShiftedPlanes  -> Track reconstructed in a bx-shifted ROC with non-bx-shifted planes only                                                                   
+  /// reco_info = mixedPlanes      -> Track reconstructed in a bx-shifted ROC both with bx-shifted and non-bx-shifted planes                                                    
+  /// reco_info = invalid          -> Dummy value. Assigned when reco_info is not computed                                                         
+  //  enum class CTPPSpixelLocalTrackReconstructionInfo {notShiftedRun = 0, allShiftedPlanes = 1, noShiftedPlanes = 2, mixedPlanes = 3, invalid = 5};
+
+
+  // Single-RP algorithm
+  for (const auto & proton : *recoSingleRPProtons)
     {
-      if (proton.valid())
+      if (proton.validFit())
+        {
+          th_y = proton.thetaY();
+	  th_x = proton.thetaX();
+          xi = proton.xi();
+          t = proton.t();
+	  time = proton.time(); 
+
+	  trackx1 = (*proton.contributingLocalTracks().begin())->getX();
+          tracky1 = (*proton.contributingLocalTracks().begin())->getY();
+
+	  CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo1 = (*proton.contributingLocalTracks().begin())->getPixelTrackRecoInfo();
+	  if(pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes || 
+	     pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::invalid)
+	    pixshift1 = 0;
+	  else
+	    pixshift1 = 1;
+
+	  CTPPSDetId rpId((*proton.contributingLocalTracks().begin())->getRPId());
+	  decRPId = rpId.arm()*100 + rpId.station()*10 + rpId.rp();
+          ismultirp = 0;
+
+          evt_.ProtCand_xi[evt_.nRecoProtCand] = xi;
+          evt_.ProtCand_t[evt_.nRecoProtCand] = t;
+          evt_.ProtCand_ThX[evt_.nRecoProtCand] = th_x;
+          evt_.ProtCand_ThY[evt_.nRecoProtCand] = th_y;
+          evt_.ProtCand_rpid[evt_.nRecoProtCand] = decRPId;
+          evt_.ProtCand_arm[evt_.nRecoProtCand] = armId;
+          evt_.ProtCand_ismultirp[evt_.nRecoProtCand] = ismultirp;
+          evt_.ProtCand_time[evt_.nRecoProtCand] = time;
+	  evt_.ProtCand_trackx1[evt_.nRecoProtCand] = trackx1;
+          evt_.ProtCand_tracky1[evt_.nRecoProtCand] = tracky1;
+	  evt_.ProtCand_trackpixshift1[evt_.nRecoProtCand] = pixshift1;
+	  evt_.ProtCand_rpid1[evt_.nRecoProtCand] = decRPId;
+          evt_.nRecoProtCand++;
+	}
+    }
+
+  // Multi-RP algorithm
+  for (const auto & proton : *recoMultiRPProtons)
+    {
+      if (proton.validFit())
 	{
-	  th_y = (proton.direction().y()) / (proton.direction().mag());
-	  th_x = (proton.direction().x()) / (proton.direction().mag());
+	  th_y = proton.thetaY();
+	  th_x = proton.thetaX();
 	  xi = proton.xi();
+	  t = proton.t();
+          time = proton.time();
 
-	  // t                                                                                                                                           
-	  const double m = 0.938; // GeV                                                                                                               
-	  const double p = 6500.; // GeV	
-
-	  float t0 = 2.*m*m + 2.*p*p*(1.-xi) - 2.*sqrt( (m*m + p*p) * (m*m + p*p*(1.-xi)*(1.-xi)) );
-	  float th = sqrt(th_x * th_x + th_y * th_y);
-	  float S = sin(th/2.);
-	  t = t0 - 4. * p*p * (1.-xi) * S*S;
-
-	  if (proton.method == reco::ProtonTrack::rmSingleRP)
+	  int ij=0;
+	  for (const auto &tr : proton.contributingLocalTracks())
 	    {
-	      CTPPSDetId rpId(* proton.contributingRPIds.begin());
-	      decRPId = rpId.arm()*100 + rpId.station()*10 + rpId.rp();
-	      ismultirp = 0;
+	      CTPPSDetId rpIdJ(tr->getRPId());
+	      unsigned int rpDecIdJ = rpIdJ.arm()*100 + rpIdJ.station()*10 + rpIdJ.rp();
+
+	      CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo = (*proton.contributingLocalTracks().begin())->getPixelTrackRecoInfo();
+
+	      if(ij == 0)
+		{
+		  trackx1 = tr->getX();
+		  tracky1 = tr->getY();
+		  trackrpid1 = rpDecIdJ;
+		  armId = rpIdJ.arm();
+		  if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes ||
+		     pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid)
+		    pixshift1 = 0;
+		  else
+		    pixshift1 = 1;
+		}
+	      if(ij == 1)
+		{
+                  trackx2 = tr->getX();
+                  tracky2 = tr->getY();
+                  trackrpid2 = rpDecIdJ;
+                  if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes ||
+                     pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid)
+                    pixshift2 = 0;
+		  else
+		    pixshift2 = 1;
+		}
+	      ij++;
 	    }
-	  if (proton.method == reco::ProtonTrack::rmMultiRP)
-	    {
-	      CTPPSDetId rpId(* proton.contributingRPIds.begin());
-	      armId = rpId.arm();
-	      ismultirp = 1;
-	    }
+
+	  ismultirp = 1;
 
 	  evt_.ProtCand_xi[evt_.nRecoProtCand] = xi;
 	  evt_.ProtCand_t[evt_.nRecoProtCand] = t;
@@ -738,6 +900,15 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
           evt_.ProtCand_rpid[evt_.nRecoProtCand] = decRPId;
 	  evt_.ProtCand_arm[evt_.nRecoProtCand] = armId;
 	  evt_.ProtCand_ismultirp[evt_.nRecoProtCand] = ismultirp;
+          evt_.ProtCand_time[evt_.nRecoProtCand] = time;
+          evt_.ProtCand_trackx1[evt_.nRecoProtCand] = trackx1;
+          evt_.ProtCand_tracky1[evt_.nRecoProtCand] = tracky1;
+          evt_.ProtCand_rpid1[evt_.nRecoProtCand] = trackrpid1;
+          evt_.ProtCand_trackx2[evt_.nRecoProtCand] = trackx2;
+          evt_.ProtCand_tracky2[evt_.nRecoProtCand] = tracky2;
+          evt_.ProtCand_trackpixshift1[evt_.nRecoProtCand] = pixshift1;
+          evt_.ProtCand_trackpixshift2[evt_.nRecoProtCand] = pixshift2;
+          evt_.ProtCand_rpid2[evt_.nRecoProtCand] = trackrpid2;
 	  evt_.nRecoProtCand++;
 	}
     }
@@ -750,7 +921,6 @@ GammaGammaLL::fetchVertices( const edm::Event& iEvent )
   // Get the vertex collection from the event
   edm::Handle<edm::View<reco::Vertex> > recoVertexColl;
   iEvent.getByToken( recoVertexToken_, recoVertexColl );
-
   for ( unsigned int i = 0; i < recoVertexColl->size() && evt_.nPrimVertexCand < ggll::AnalysisEvent::MAX_VTX; ++i ) {
     const edm::Ptr<reco::Vertex> vertex = recoVertexColl->ptrAt( i);
 
@@ -763,7 +933,6 @@ GammaGammaLL::fetchVertices( const edm::Event& iEvent )
     evt_.nPrimVertexCand++;
   }
 }
-
 void
 GammaGammaLL::newVertexInfoRetrieval( const edm::Event& iEvent )
 {
