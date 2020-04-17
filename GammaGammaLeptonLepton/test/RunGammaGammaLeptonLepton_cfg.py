@@ -17,13 +17,11 @@ process.options   = cms.untracked.PSet(
     allowUnscheduled = cms.untracked.bool(True),
 )
 
-<<<<<<< HEAD
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )
 #process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
 =======
 #process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
->>>>>>> 69a006b411b017de24e739a0241597bbabe77b0d
 process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 
 #########################
@@ -34,14 +32,11 @@ process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
 #'/store/data/Run2016G/DoubleEG/AOD/23Sep2016-v1/100000/0042DBD3-BA8E-E611-919E-002481ACDAA8.root',
 #'/store/data/Run2017C/DoubleMuon/AOD/12Sep2017-v1/10000/029F251F-B1A2-E711-AAC3-001E67792890.root',
-<<<<<<< HEAD
-
 ##'/store/mc/RunIIFall17DRPremix/GGToWW_bSM-A0W1e-6_13TeV-fpmc-herwig6/AODSIM/PU2017_94X_mc2017_realistic_v11-v2/40000/FAB1B549-E128-E911-A65A-00266CF3E3C4.root',
 'file:/eos/user/m/mghahrem/MC-GGToZZ_bSM-A0Z-1e-5/EACF2357-F526-E911-A5CC-FA163E0B1665.root',
 #'file:/eos/user/m/mghahrem/MC-GGToZZ_bSM-A0Z-1e-5/DA08BEA6-E226-E911-9173-0CC47AFF02C4.root'
 
 
-=======
 #'/store/data/Run2018B/DoubleMuon/MINIAOD/17Sep2018-v1/00000/8E1342C6-AA35-9049-B101-B5B595EAAEE2.root'
 #'/store/data/Run2017C/DoubleMuon/AOD/17Nov2017-v1/30001/30DDB6DA-CBD8-E711-AF2A-A4BF0112BCB4.root'
 #'file:/tmp/jjhollar/8816F63B-C0D5-E711-B32B-002590D9D9F0.root'
@@ -57,7 +52,6 @@ process.source = cms.Source("PoolSource",
 #'/store/data/Run2017C/DoubleMuon/AOD/17Nov2017-v1/30000/90A083BD-CBD8-E711-A440-A4BF0108B5F2.root'
 #'file:/tmp/jjhollar/90A083BD-CBD8-E711-A440-A4BF0108B5F2.root'
 'file:pickevents.root'
->>>>>>> 69a006b411b017de24e739a0241597bbabe77b0d
     ),
     #firstEvent = cms.untracked.uint32(0)
 )
