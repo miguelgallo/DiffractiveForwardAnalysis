@@ -210,6 +210,10 @@ class GammaGammaLL : public edm::one::EDAnalyzer<edm::one::WatchRuns,edm::one::S
     std::map<unsigned int,reco::TransientTrack> muonTransientTracks_, eleTransientTracks_;
 
     unsigned int nCandidates_;
+
+    bool runOnMINIAOD_;
+    edm::EDGetTokenT<edm::View<pat::PackedCandidate> > pfCand_;
+
 };
 
 const unsigned int ggll::AnalysisEvent::MAX_ET;
@@ -250,7 +254,9 @@ GammaGammaLL::GammaGammaLL( const edm::ParameterSet& iConfig ) :
   dataPileupFile_     ( iConfig.getParameter<std::string>( "datapufile" ) ),
   mcPileupPath_       ( iConfig.getParameter<std::string>( "mcpupath" ) ),
   dataPileupPath_     ( iConfig.getParameter<std::string>( "datapupath" ) ),
-  nCandidates_( 0 )
+  nCandidates_( 0 ),
+  runOnMINIAOD_       ( iConfig.getParameter<bool>( "runOnMINIAOD" ) ),
+  pfCand_          ( consumes<edm::View<pat::PackedCandidate> >                ( iConfig.getParameter<edm::InputTag>( "pfCand" ) ) )
 {
   // Generator level
   if ( runOnMC_ ) {
@@ -357,9 +363,9 @@ GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 
   // High level trigger information retrieval
   // JH - for Summer17 MC this crashes...
-  if ( !runOnMC_ ) {
+  //if ( !runOnMC_ ) {
     lookAtTriggers( iEvent, iSetup);
-  }
+  //}
 
   LogDebug( "GammaGammaLL" ) << "Passed trigger filtering stage";
 
@@ -406,12 +412,17 @@ GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 
   if ( fetchMuons_ ) fetchMuons( iEvent );
   if ( fetchElectrons_ ) fetchElectrons( iEvent );
-
-  newVertexInfoRetrieval( iEvent );
-
-  if ( !foundPairInEvent_ ) {
-    //LogDebug( "GammaGammaLL" ) << "No pair retrieved in event";
-    return; // avoid to unpack RP/jet/MET if no dilepton candidate has been found
+  
+  if (runOnMINIAOD_ == false) {
+     newVertexInfoRetrieval( iEvent );
+   
+     if ( !foundPairInEvent_ ) {
+        //LogDebug( "GammaGammaLL" ) << "No pair retrieved in event";
+        return; // avoid to unpack RP/jet/MET if no dilepton candidate has been found
+     }
+  }
+  else {
+     fetchVertices( iEvent );
   }
 
   if ( fetchProtons_ ) {
@@ -423,6 +434,22 @@ GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
   if ( printCandidates_ )
     std::cout << "Event " << evt_.Run << ":" << evt_.EventNum << " has " << evt_.nPair << " leptons pair(s) candidate(s) (vertex mult. : " << evt_.nPrimVertexCand << " )" << std::endl;
 
+  if (runOnMINIAOD_ == true) {
+     edm::Handle<edm::View<pat::PackedCandidate> > pfCand;
+     iEvent.getByToken( pfCand_, pfCand );
+     unsigned int jj = 0;
+     for (unsigned int i = 0; i < pfCand->size() && /*evt_.nPfCand*/jj < ggll::AnalysisEvent::MAX_PFCAND; ++i) {
+        const pat::PackedCandidate &pf = (*pfCand)[i];
+        if ( ( pf.dz() < .3 ) && ( abs(pf.pdgId()) == 211 || abs(pf.pdgId()) == 11 || abs(pf.pdgId()) == 13 ) && ( (pf.fromPV() == 2) || (pf.fromPV() == 3) ) ) {
+           evt_.PfCand_phi[jj] = pf.phi();
+           evt_.PfCand_eta[jj] = pf.eta();
+           evt_.PfCand_fromPV[jj] = pf.fromPV();
+           evt_.PfCand_dz[jj] = pf.dz();
+           jj++;
+           evt_.nPfCand++;   
+        }
+     }  
+  }
   tree_->Fill();
 }
 
