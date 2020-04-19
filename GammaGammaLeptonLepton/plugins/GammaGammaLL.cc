@@ -347,6 +347,7 @@ GammaGammaLL::lookAtTriggers( const edm::Event& iEvent, const edm::EventSetup& i
 void
 GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 {
+
   // Kalman filtering
   iSetup.get<TransientTrackRecord>().get( "TransientTrackBuilder", KalVtx_ );
 
@@ -412,7 +413,7 @@ GammaGammaLL::analyze( const edm::Event& iEvent, const edm::EventSetup& iSetup )
 
   if ( fetchMuons_ ) fetchMuons( iEvent );
   if ( fetchElectrons_ ) fetchElectrons( iEvent );
-  
+
   if (runOnMINIAOD_ == false) {
      newVertexInfoRetrieval( iEvent );
    
