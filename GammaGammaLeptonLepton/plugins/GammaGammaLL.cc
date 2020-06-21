@@ -837,6 +837,8 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
          {
             CTPPSDetId rpIdJ(tr->getRPId());
             rpDecIdJ = rpIdJ.arm()*100 + rpIdJ.station()*10 + rpIdJ.rp();
+            
+            CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo = tr->getPixelTrackRecoInfo();
 
             if(ij == 0)
             {
@@ -844,7 +846,6 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
                tracky_multi1 = tr->getY();
                trackrpid1 = rpDecIdJ;
                armId = rpIdJ.arm();
-               CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo = (*proton.contributingLocalTracks().begin())->getPixelTrackRecoInfo();
                if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid) pixshift_multi1 = 0;
                else pixshift_multi1 = 1;
 
@@ -858,7 +859,6 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
                trackx_multi2 = tr->getX();
                tracky_multi2 = tr->getY();
                trackrpid2 = rpDecIdJ;
-               CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo = (*proton.contributingLocalTracks().begin())->getPixelTrackRecoInfo();
                if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid) pixshift_multi2 = 0;
                else pixshift_multi2 = 1;
 
