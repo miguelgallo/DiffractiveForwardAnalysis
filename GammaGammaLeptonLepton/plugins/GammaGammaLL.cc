@@ -898,6 +898,7 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
          evt_.nRecoProtCand++;
       }
    }
+      
 }
 
    void
