@@ -724,110 +724,102 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
    edm::Handle<vector<reco::ForwardProton>> recoSingleRPProtons;
    iEvent.getByToken(recoProtonsSingleRPToken_, recoSingleRPProtons);
 
-   int ismultirp = -999;
-   unsigned int decRPId = -999;
-   unsigned int rpDecIdJ = -999;
-   unsigned int armId = -999;
-   float th_y = -999;
-   float th_x = -999;
-   float t = -999;
-   float xi = -999;
-   //float trackx1 = -999.;
-   //float tracky1 = -999.;
-   //float trackx2 = -999.;
-   //float tracky2 = -999.;
-   float trackx_single = -999.;
-   float tracky_single = -999.;
-   float trackx_multi1 = -999.;
-   float tracky_multi1 = -999.;
-   float trackx_multi2 = -999.;
-   float tracky_multi2 = -999.;
-   unsigned int trackrpid1 = -999;
-   unsigned int trackrpid2 = -999;
-   //int pixshift1 = -999;
-   //int pixshift2 = -999;
-   int pixshift_single = -999;
-   int pixshift_multi1 = -999;
-   int pixshift_multi2 = -999;
-   float trackchi2ndf_single = -999.;
-   float trackchi2ndf_multi1 = -999.;
-   float trackchi2ndf_multi2 = -999.;
-   int trackndf_single = -999;
-   int trackndf_multi1 = -999;
-   int trackndf_multi2 = -999;
-   float trackthx_single = -999;
-   float trackthx_multi1 = -999;
-   float trackthx_multi2 = -999;
-   float trackthy_single = -999;
-   float trackthy_multi1 = -999;
-   float trackthy_multi2 = -999;
-   float time = -999.;
+  int ismultirp = -999;
+  unsigned int decRPId = -999;
+  unsigned int armId = -999;
+  float th_y = -999;
+  float th_x = -999;
+  float ystar = -999;
+  float t = -999;
+  float xi = -999;
+  float trackx1 = -999.;
+  float tracky1 = -999.;
+  float trackx2 = -999.;
+  float tracky2 = -999.;
+  unsigned int trackrpid1 = -999;
+  unsigned int trackrpid2 = -999;
+  int pixshift1 = -999;
+  int pixshift2 = -999;
+  float trackchi2ndf1 = -999.;
+  float trackchi2ndf2 = -999.;
+  int trackndf1 = -999;
+  int trackndf2 = -999;
+  float trackthx1 = -999;
+  float trackthy1 = -999;
+  float trackthx2 = -999;
+  float trackthy2 = -999;
+  float time = -999.;
 
-   evt_.nRecoProtCand = 0;
+  evt_.nRecoProtCand = 0;
 
-   /// Track information byte for bx-shifted runs:                                                                                                                               
-   /// reco_info = notShiftedRun    -> Default value for tracks reconstructed in non-bx-shifted ROCs                                                                             
-   /// reco_info = allShiftedPlanes -> Track reconstructed in a bx-shifted ROC with bx-shifted planes only                                                                       
-   /// reco_info = noShiftedPlanes  -> Track reconstructed in a bx-shifted ROC with non-bx-shifted planes only                                                                   
-   /// reco_info = mixedPlanes      -> Track reconstructed in a bx-shifted ROC both with bx-shifted and non-bx-shifted planes                                                    
-   /// reco_info = invalid          -> Dummy value. Assigned when reco_info is not computed                                                         
-   //  enum class CTPPSpixelLocalTrackReconstructionInfo {notShiftedRun = 0, allShiftedPlanes = 1, noShiftedPlanes = 2, mixedPlanes = 3, invalid = 5};
+  /// Track information byte for bx-shifted runs:                                                                                                                               
+  /// reco_info = notShiftedRun    -> Default value for tracks reconstructed in non-bx-shifted ROCs                                                                             
+  /// reco_info = allShiftedPlanes -> Track reconstructed in a bx-shifted ROC with bx-shifted planes only                                                                       
+  /// reco_info = noShiftedPlanes  -> Track reconstructed in a bx-shifted ROC with non-bx-shifted planes only                                                                   
+  /// reco_info = mixedPlanes      -> Track reconstructed in a bx-shifted ROC both with bx-shifted and non-bx-shifted planes                                                    
+  /// reco_info = invalid          -> Dummy value. Assigned when reco_info is not computed                                                         
+  //  enum class CTPPSpixelLocalTrackReconstructionInfo {notShiftedRun = 0, allShiftedPlanes = 1, noShiftedPlanes = 2, mixedPlanes = 3, invalid = 5};
 
-
-   // Single-RP algorithm
+  // Single-RP algorithm
    for (const auto & proton : *recoSingleRPProtons)
-   {
+   {   
       if (proton.validFit())
       {
          th_y = proton.thetaY();
          th_x = proton.thetaX();
+         ystar = proton.vy();
          xi = proton.xi();
          t = proton.t();
-         time = proton.time(); 
+         time = proton.time();
 
-         trackx_single = (*proton.contributingLocalTracks().begin())->getX();
-         tracky_single = (*proton.contributingLocalTracks().begin())->getY();
+         trackx1 = (*proton.contributingLocalTracks().begin())->getX();   
+         tracky1 = (*proton.contributingLocalTracks().begin())->getY();
 
          CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo1 = (*proton.contributingLocalTracks().begin())->getPixelTrackRecoInfo();
-         if(pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes || pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::invalid) pixshift_single = 0;
-         else pixshift_single = 1;
+         if(pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes ||
+               pixtrackinfo1 == CTPPSpixelLocalTrackReconstructionInfo::invalid)
+            pixshift1 = 0;
+         else
+            pixshift1 = 1;
 
-         trackchi2ndf_single = (*proton.contributingLocalTracks().begin())->getChiSquaredOverNDF();
-         trackndf_single = 2 * ((*proton.contributingLocalTracks().begin())->getNumberOfPointsUsedForFit()) - 4;
-         trackthx_single = (*proton.contributingLocalTracks().begin())->getTx();
-         trackthy_single = (*proton.contributingLocalTracks().begin())->getTy();
+         trackchi2ndf1 = (*proton.contributingLocalTracks().begin())->getChiSquaredOverNDF();
+         trackndf1 = 2 * ((*proton.contributingLocalTracks().begin())->getNumberOfPointsUsedForFit()) - 4;
+         trackthx1 = (*proton.contributingLocalTracks().begin())->getTx();
+         trackthy1 = (*proton.contributingLocalTracks().begin())->getTy();
 
          CTPPSDetId rpId((*proton.contributingLocalTracks().begin())->getRPId());
          decRPId = rpId.arm()*100 + rpId.station()*10 + rpId.rp();
          ismultirp = 0;
-
+       
          evt_.ProtCand_xi[evt_.nRecoProtCand] = xi;
          evt_.ProtCand_t[evt_.nRecoProtCand] = t;
          evt_.ProtCand_ThX[evt_.nRecoProtCand] = th_x;
          evt_.ProtCand_ThY[evt_.nRecoProtCand] = th_y;
+         evt_.ProtCand_ystar[evt_.nRecoProtCand] = ystar;
          evt_.ProtCand_rpid[evt_.nRecoProtCand] = decRPId;
          evt_.ProtCand_arm[evt_.nRecoProtCand] = armId;
          evt_.ProtCand_ismultirp[evt_.nRecoProtCand] = ismultirp;
          evt_.ProtCand_time[evt_.nRecoProtCand] = time;
-         evt_.ProtCand_trackx1[evt_.nRecoProtCand] = trackx_single;
-         evt_.ProtCand_tracky1[evt_.nRecoProtCand] = tracky_single;
-         evt_.ProtCand_trackpixshift_single[evt_.nRecoProtCand] = pixshift_single;
+         evt_.ProtCand_trackx1[evt_.nRecoProtCand] = trackx1;
+         evt_.ProtCand_tracky1[evt_.nRecoProtCand] = tracky1;
+         evt_.ProtCand_trackpixshift1[evt_.nRecoProtCand] = pixshift1;
          evt_.ProtCand_rpid1[evt_.nRecoProtCand] = decRPId;
-         evt_.ProtCand_trackreducedchi2_single[evt_.nRecoProtCand] = trackchi2ndf_single;
-         evt_.ProtCand_trackndof_single[evt_.nRecoProtCand] = trackndf_single;
-         evt_.ProtCand_trackthx_single[evt_.nRecoProtCand] = trackthx_single;
-         evt_.ProtCand_trackthy_single[evt_.nRecoProtCand] = trackthy_single;
+         evt_.ProtCand_trackreducedchi21[evt_.nRecoProtCand] = trackchi2ndf1;
+         evt_.ProtCand_trackndof1[evt_.nRecoProtCand] = trackndf1;
+         evt_.ProtCand_trackthx1[evt_.nRecoProtCand] = trackthx1;
+         evt_.ProtCand_trackthy1[evt_.nRecoProtCand] = trackthy1;
          evt_.nRecoProtCand++;
       }
    }
 
-   // Multi-RP algorithm
-   for (const auto & proton : *recoMultiRPProtons)
+  // Multi-RP algorithm
+  for (const auto & proton : *recoMultiRPProtons)
    {
       if (proton.validFit())
       {
          th_y = proton.thetaY();
          th_x = proton.thetaX();
+         ystar = proton.vy();
          xi = proton.xi();
          t = proton.t();
          time = proton.time();
@@ -836,70 +828,76 @@ GammaGammaLL::fetchProtons( const edm::Event& iEvent )
          for (const auto &tr : proton.contributingLocalTracks())
          {
             CTPPSDetId rpIdJ(tr->getRPId());
-            rpDecIdJ = rpIdJ.arm()*100 + rpIdJ.station()*10 + rpIdJ.rp();
-            
+            unsigned int rpDecIdJ = rpIdJ.arm()*100 + rpIdJ.station()*10 + rpIdJ.rp();
+
             CTPPSpixelLocalTrackReconstructionInfo pixtrackinfo = tr->getPixelTrackRecoInfo();
 
             if(ij == 0)
             {
-               trackx_multi1 = tr->getX();
-               tracky_multi1 = tr->getY();
+               trackx1 = tr->getX();
+               tracky1 = tr->getY();
                trackrpid1 = rpDecIdJ;
                armId = rpIdJ.arm();
-               if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid) pixshift_multi1 = 0;
-               else pixshift_multi1 = 1;
-
-               trackchi2ndf_multi1 = tr->getChiSquaredOverNDF();
-               trackndf_multi1 = 2 * (tr->getNumberOfPointsUsedForFit()) - 4;
-               trackthx_multi1 = tr->getTx();
-               trackthy_multi1 = tr->getTy();
+               if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes ||
+                     pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid)
+                  pixshift1 = 0;
+               else
+                  pixshift1 = 1;
+               
+               trackchi2ndf1 = tr->getChiSquaredOverNDF();
+               trackndf1 = 2 * (tr->getNumberOfPointsUsedForFit()) - 4;
+               trackthx1 = tr->getTx();
+               trackthy1 = tr->getTy();
             }
             if(ij == 1)
             {
-               trackx_multi2 = tr->getX();
-               tracky_multi2 = tr->getY();
+               trackx2 = tr->getX();
+               tracky2 = tr->getY();
                trackrpid2 = rpDecIdJ;
-               if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid) pixshift_multi2 = 0;
-               else pixshift_multi2 = 1;
+               if(pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::notShiftedRun || pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::noShiftedPlanes ||
+                     pixtrackinfo == CTPPSpixelLocalTrackReconstructionInfo::invalid)
+                  pixshift2 = 0;
+               else
+                  pixshift2 = 1;
 
-               trackchi2ndf_multi2 = tr->getChiSquaredOverNDF();
-               trackndf_multi2 = 2 * (tr->getNumberOfPointsUsedForFit()) - 4;
-               trackthx_multi2 = tr->getTx();
-               trackthy_multi2 = tr->getTy();
+               trackchi2ndf2 = tr->getChiSquaredOverNDF();
+               trackndf2 = 2 * (tr->getNumberOfPointsUsedForFit()) - 4;
+               trackthx2 = tr->getTx();
+               trackthy2 = tr->getTy();
             }
             ij++;
          }
 
          ismultirp = 1;
-
+         
          evt_.ProtCand_xi[evt_.nRecoProtCand] = xi;
          evt_.ProtCand_t[evt_.nRecoProtCand] = t;
          evt_.ProtCand_ThX[evt_.nRecoProtCand] = th_x;
          evt_.ProtCand_ThY[evt_.nRecoProtCand] = th_y;
-         evt_.ProtCand_rpid[evt_.nRecoProtCand] = rpDecIdJ;
+         evt_.ProtCand_ystar[evt_.nRecoProtCand] = ystar;
+         evt_.ProtCand_rpid[evt_.nRecoProtCand] = decRPId;
          evt_.ProtCand_arm[evt_.nRecoProtCand] = armId;
          evt_.ProtCand_ismultirp[evt_.nRecoProtCand] = ismultirp;
          evt_.ProtCand_time[evt_.nRecoProtCand] = time;
-         evt_.ProtCand_trackx1[evt_.nRecoProtCand] = trackx_multi1;
-         evt_.ProtCand_tracky1[evt_.nRecoProtCand] = tracky_multi1;
+         evt_.ProtCand_trackx1[evt_.nRecoProtCand] = trackx1;
+         evt_.ProtCand_tracky1[evt_.nRecoProtCand] = tracky1;
          evt_.ProtCand_rpid1[evt_.nRecoProtCand] = trackrpid1;
+         evt_.ProtCand_trackx2[evt_.nRecoProtCand] = trackx2;
+         evt_.ProtCand_tracky2[evt_.nRecoProtCand] = tracky2;
+         evt_.ProtCand_trackpixshift1[evt_.nRecoProtCand] = pixshift1;
+         evt_.ProtCand_trackpixshift2[evt_.nRecoProtCand] = pixshift2;
          evt_.ProtCand_rpid2[evt_.nRecoProtCand] = trackrpid2;
-         evt_.ProtCand_trackx2[evt_.nRecoProtCand] = trackx_multi2;
-         evt_.ProtCand_tracky2[evt_.nRecoProtCand] = tracky_multi2;
-         evt_.ProtCand_trackpixshift_multi1[evt_.nRecoProtCand] = pixshift_multi1;
-         evt_.ProtCand_trackpixshift_multi2[evt_.nRecoProtCand] = pixshift_multi2;
-         evt_.ProtCand_trackreducedchi2_multi1[evt_.nRecoProtCand] = trackchi2ndf_multi1;
-         evt_.ProtCand_trackndof_multi1[evt_.nRecoProtCand] = trackndf_multi1;
-         evt_.ProtCand_trackthx_multi1[evt_.nRecoProtCand] = trackthx_multi1;
-         evt_.ProtCand_trackthy_multi1[evt_.nRecoProtCand] = trackthy_multi1;
-         evt_.ProtCand_trackreducedchi2_multi2[evt_.nRecoProtCand] = trackchi2ndf_multi2;
-         evt_.ProtCand_trackndof_multi2[evt_.nRecoProtCand] = trackndf_multi2;
-         evt_.ProtCand_trackthx_multi2[evt_.nRecoProtCand] = trackthx_multi2;
-         evt_.ProtCand_trackthy_multi2[evt_.nRecoProtCand] = trackthy_multi2;
+         evt_.ProtCand_trackreducedchi21[evt_.nRecoProtCand] = trackchi2ndf1;
+         evt_.ProtCand_trackndof1[evt_.nRecoProtCand] = trackndf1;
+         evt_.ProtCand_trackthx1[evt_.nRecoProtCand] = trackthx1;
+         evt_.ProtCand_trackthy1[evt_.nRecoProtCand] = trackthy1;
+         evt_.ProtCand_trackreducedchi22[evt_.nRecoProtCand] = trackchi2ndf2;
+         evt_.ProtCand_trackndof2[evt_.nRecoProtCand] = trackndf2;
+         evt_.ProtCand_trackthx2[evt_.nRecoProtCand] = trackthx2;
+         evt_.ProtCand_trackthy2[evt_.nRecoProtCand] = trackthy2;
          evt_.nRecoProtCand++;
       }
    }
-
 }
 
    void
